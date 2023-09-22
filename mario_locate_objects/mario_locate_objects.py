@@ -346,6 +346,24 @@ def make_action(screen, info, step, env, prev_action):
     if mario_locations:
             location, dimensions, object_name = mario_locations[0]
             mario_x, mario_y = location
+
+    ene_locs = []
+    if enemy_locations:
+        for enemy in enemy_locations:
+            enemy_location, enemy_dimensions, enemy_name = enemy
+            ene_locs.append(enemy_location)
+    if ene_locs:
+        ene_locs.sort()
+        enemy_x, enemy_y = ene_locs[0]
+        try:
+            if mario_x < enemy_x:
+                if mario_y == enemy_y and enemy_x - mario_x < 50:
+                    return 2
+                else:
+                    return 1
+        except UnboundLocalError:
+            pass
+        
     if item_locations:
         item_loc, dimensions, object_name = item_locations[0]
         item_x, item_y = item_loc
@@ -360,18 +378,6 @@ def make_action(screen, info, step, env, prev_action):
                 return 1
         except UnboundLocalError:
             pass
-    ene_locs = []
-    if enemy_locations:
-        for enemy in enemy_locations:
-            enemy_location, enemy_dimensions, enemy_name = enemy
-            ene_locs.append(enemy_location)
-    if ene_locs:
-        ene_locs.sort()
-        enemy_x, enemy_y = ene_locs[0]
-        if mario_x < enemy_x:
-            if mario_y == enemy_y and enemy_x - mario_x < 50:
-                return 2
-            return 1
         
     question_loc = []
     for block in block_locations:

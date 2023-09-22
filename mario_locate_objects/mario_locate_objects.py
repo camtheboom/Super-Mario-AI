@@ -340,6 +340,9 @@ def make_action(screen, info, step, env, prev_action):
         mario_status = info["status"]
         print("Mario's location in world:",
               mario_world_x, mario_world_y, f"({mario_status} mario)")
+        
+
+        # TODO: Write code for a strategy, such as a rule based agent.
     if mario_locations:
             location, dimensions, object_name = mario_locations[0]
             mario_x, mario_y = location
@@ -393,7 +396,6 @@ def make_action(screen, info, step, env, prev_action):
                 return 2
         except UnboundLocalError:
             pass
-    # TODO: Write code for a strategy, such as a rule based agent.
             
     # Choose an action from the list of available actions.
     # For example, action = 0 means do nothing

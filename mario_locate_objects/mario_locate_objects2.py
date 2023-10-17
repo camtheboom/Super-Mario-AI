@@ -374,7 +374,9 @@ def make_action(screen, info, step, env, prev_action):
         if enemy_locations:
             for enemy in enemy_locations:
                 enemy_location, enemy_dimensions, enemy_name = enemy
-                ene_locs.append(enemy_location)
+                if enemy_location[0] > mario_x:
+                    ene_locs.append(enemy)
+                # ene_locs.append(enemy_location)
         # if ene_locs:
         #     ene_locs.sort()
         #     enemy_x, enemy_y = ene_locs[0]
@@ -399,27 +401,38 @@ def make_action(screen, info, step, env, prev_action):
         #         enemy_location, enemy_dimensions, enemy_name = enemy
         #         ene_locs.append(enemy_location)
         gap = []
+        gap_x = 0
         if block_loc:
             block_x, block_y = block_loc[0]
             for block in block_loc:
-                if block[1] != 208:
+                if block[1] != 224:
                     continue
                 if block[1] == block_y:
                     if block[0] - block_x > 16:
-                        gap.append(block)
+                        gap.append(block_x)
+                        gap_x = block_x
                 block_x, block_y = block
         if gap:
-            gap_x = gap[0][0]
-            if mario_x > gap_x: 
+            if mario_x > gap_x + 16: 
                 if len(gap) > 1:
-                    print("passed")
-                    gap_x = gap[1][0]
+                    gap_x = gap[1]
+                else:
+                    gap_x = 500
             if gap_x - mario_x < 10:
                 return 2
+        # if gap:
+        #     gap_x = gap[0][0]
+        #     if mario_x > gap_x: 
+        #         if len(gap) > 1:
+        #             print("passed")
+        #             gap_x = gap[1][0]
+        #     if gap_x - mario_x < 10:
+        #         return 2
             
         if ene_locs:
             ene_locs.sort()
-            enemy_x, enemy_y = ene_locs[0]
+            enemy_x, enemy_y = ene_locs[0][0]
+            enemy_name = ene_locs[0][2]
             away = False
             if mario_x < enemy_x:
                 if enemy_x >= prev.prev_ene_x:
@@ -432,11 +445,14 @@ def make_action(screen, info, step, env, prev_action):
                 else:
                     away = False
             prev.prev_ene_x = enemy_x
-            if enemy_ahead(mario_x, mario_y, enemy_x, enemy_y) and can_stomp_on_enemy(mario_x, mario_y, enemy_x, enemy_y, away):
-                return jump_on_enemy()
-        if step % 20 == 0 and speed == 0:
-            return 0
-            
+            if enemy_ahead(mario_x, mario_y, enemy_x, enemy_y) and can_stomp_on_enemy(mario_x, mario_y, enemy_x, enemy_y, away, enemy_name):
+                action = jump_on_enemy()
+                return action
+        if speed == 0:
+            if step % 20 == 0:
+                return 0
+            else:
+                return 2    
         
         if pipe_loc:
             if mario_x > pipe_loc[0][0]:
@@ -446,7 +462,8 @@ def make_action(screen, info, step, env, prev_action):
                     pipe_x, pipe_y = pipe_loc[0]
             pipe_x, pipe_y = pipe_loc[0]
             if pipe_ahead(mario_x, mario_y, pipe_x, pipe_y) and can_jump_over_pipe(mario_x, mario_y, pipe_x, pipe_y):
-                return jump_over_pipe()
+                action = jump_over_pipe()
+                return action
 
 # --------------------------------------------------------------------------
     # question_loc = []
@@ -579,7 +596,12 @@ def make_action(screen, info, step, env, prev_action):
 def enemy_ahead(mario_x, mario_y, ene_x, ene_y):
     return mario_x < ene_x
 
-def can_stomp_on_enemy(mario_x, mario_y, ene_x, ene_y, away):
+def can_stomp_on_enemy(mario_x, mario_y, ene_x, ene_y, away, ene_name):
+    if ene_name == "koopa":
+        if mario_x < ene_x:
+            return ene_y - mario_y < 20 and ene_x - mario_x < 47
+        else:
+            return mario_y - ene_y < 20 and ene_x - mario_x < 47
     return mario_y == ene_y and ene_x - mario_x < 47
     if away:
         return mario_y == ene_y and ene_x - mario_x < 35
@@ -613,7 +635,7 @@ env = JoypadSpace(env, COMPLEX_MOVEMENT)
 obs = None
 done = True
 env.reset()
-for step in range(100000):
+for step in range(10000):
     if obs is not None:
         action = make_action(obs, info, step, env, action)
     else:

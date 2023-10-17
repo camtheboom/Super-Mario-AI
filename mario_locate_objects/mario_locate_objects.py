@@ -1,10 +1,10 @@
 from nes_py.wrappers import JoypadSpace
-from gym_super_mario_bros.actions import SIMPLE_MOVEMENT
+from gym_super_mario_bros.actions import COMPLEX_MOVEMENT
 import gym
 import cv2 as cv
 import numpy as np
 import string
-
+import agent
 # code for locating objects on the screen in super mario bros
 # by Lauren Gee
 
@@ -247,7 +247,7 @@ def locate_objects(screen, mario_status):
 
     # locate pipes
     object_locations["block"] += _locate_pipe(screen)
-
+    #print(object_locations)
     return object_locations
 
 ################################################################################
@@ -285,10 +285,8 @@ def make_action(screen, info, step, env, prev_action):
 
     # List of locations of blocks, pipes, etc:
     block_locations = object_locations["block"]
-
     # List of locations of items: (so far, it only finds mushrooms)
     item_locations = object_locations["item"]
-
     # This is the format of the lists of locations:
     # ((x_coordinate, y_coordinate), (object_width, object_height), object_name)
     #
@@ -340,88 +338,246 @@ def make_action(screen, info, step, env, prev_action):
         mario_status = info["status"]
         print("Mario's location in world:",
               mario_world_x, mario_world_y, f"({mario_status} mario)")
-        
-
+    # move = agent.move(mario_locations, enemy_locations, item_locations, block_locations, step, prev)
+    # if move == None:
+    #     return 0
+    # if step % 15 == 0:
+    #     return 0
+    # else:
+    #     return 5
+# --------------------------------------------------------------------------
         # TODO: Write code for a strategy, such as a rule based agent.
     if mario_locations:
             location, dimensions, object_name = mario_locations[0]
             mario_x, mario_y = location
+            mario_world_x = info["x_pos"]
+            speed = mario_world_x - prev.prev_mario_world_x
+            prev.prev_mario_world_x = mario_world_x
+
+
+    question_loc = []
+    pipe_loc = []
+    for block in block_locations:
+        if block[2] == "question_block":
+            question_loc.append(block[0])
+        elif block[2] == "pipe":
+            pipe_loc.append(block[0])
+    pipe_loc.sort()
+    question_loc.sort()
 
     ene_locs = []
     if enemy_locations:
         for enemy in enemy_locations:
             enemy_location, enemy_dimensions, enemy_name = enemy
             ene_locs.append(enemy_location)
+    # if ene_locs:
+    #     ene_locs.sort()
+    #     enemy_x, enemy_y = ene_locs[0]
+    #     away = False
+    #     if enemy_x + speed >= prev.prev_ene_x and mario_x < enemy_x:
+    #         away = True
+    #     elif enemy_x + speed <= prev.prev_ene_x and mario_x > enemy_x:
+    #         away = True
+    #     else:
+    #         away = False
+    #     print(away)
+    #     prev.prev_ene_x = enemy_x
+    # if question_loc:
+    #     ques_x, ques_y = question_loc[0]
+    #     if mario_x < ques_x:
+    #             if ques_x - mario_x < 15:
+    #                 if ene_locs and not enemy_danger(mario_x, mario_y, enemy_x, enemy_y):
+    #                     return 2
+    # ene_locs = []
+    # if enemy_locations:
+    #     for enemy in enemy_locations:
+    #         enemy_location, enemy_dimensions, enemy_name = enemy
+    #         ene_locs.append(enemy_location)
     if ene_locs:
         ene_locs.sort()
         enemy_x, enemy_y = ene_locs[0]
-        try:
-            if mario_x < enemy_x:
-                if mario_y == enemy_y and enemy_x - mario_x < 50:
-                    return 2
-                else:
-                    return 1
-        except UnboundLocalError:
-            pass
+        if enemy_x >= prev.prev_ene_x and mario_x < enemy_x:
+            away = True
+        elif enemy_x <= prev.prev_ene_x and mario_x > enemy_x:
+            away = True
+        else:
+            away = False
+        prev.prev_ene_x = enemy_x
+        print(away)
+        if enemy_ahead(mario_x, mario_y, enemy_x, enemy_y) and can_stomp_on_enemy(mario_x, mario_y, enemy_x, enemy_y, away):
+            return jump_on_enemy()
         
-    if item_locations:
-        item_loc, dimensions, object_name = item_locations[0]
-        item_x, item_y = item_loc
-        try:
-            if mario_x - item_x > 10:
-                return 6
-            elif item_x - mario_x < 10:
-                return 1
-            if item_y > mario_y:
-                return 5
+    
+    if pipe_loc:
+        if mario_x > pipe_loc[0][0]:
+            if len(pipe_loc) > 1:
+                pipe_x, pipe_y = pipe_loc[1]
             else:
-                return 1
-        except UnboundLocalError:
-            pass
-        
-    question_loc = []
-    for block in block_locations:
-        if block[2] == "question_block":
-            question_loc.append(block[0])
-    if question_loc:
-        question_loc.sort()
-        ques_x, ques_y = question_loc[0]
+                pipe_x, pipe_y = pipe_loc[0]
+        pipe_x, pipe_y = pipe_loc[0]
+        if pipe_ahead(mario_x, mario_y, pipe_x, pipe_y) and can_jump_over_pipe(mario_x, mario_y, pipe_x, pipe_y):
+            return jump_over_pipe()
 
-        try:
-            if mario_y < ques_y:
-                return 1
-            if mario_x - ques_x > 10:
-                return 6
-            elif ques_x - mario_x < 10:
-                return 2
-            if ques_y > mario_y:
-                return 5
-            elif step % 10 == 0:
-                return 1
-            else: 
-                return 2
-        except UnboundLocalError:
-            pass
-            
+# --------------------------------------------------------------------------
+    # question_loc = []
+    # pipe_loc = []
+    # for block in block_locations:
+    #     if block[2] == "question_block":
+    #         question_loc.append(block[0])
+    #     elif block[2] == "pipe":
+    #         pipe_loc.append(block[0])
+    # pipe_loc.sort()
+    # question_loc.sort()
+    # if pipe_loc:
+    #     pipe_x, pipe_y = pipe_loc[0]
+    #     if mario_locations:
+    #         if mario_x > pipe_x:
+    #             if len(pipe_loc) > 1:
+    #                 pipe_x, pipe_y = pipe_loc[1]
+
+    # ene_locs = []
+    # if enemy_locations:
+    #     for enemy in enemy_locations:
+    #         enemy_location, enemy_dimensions, enemy_name = enemy
+    #         ene_locs.append(enemy_location)
+    # if ene_locs:
+    #     ene_locs.sort()
+    #     enemy_x, enemy_y = ene_locs[0]
+    #     try:
+    #         if enemy_x >= prev.prev_ene_x and mario_x < enemy_x:
+    #             away = True
+    #         elif enemy_x <= prev.prev_ene_x and mario_x > enemy_x:
+    #             away = True
+    #         else:
+    #             away = False
+    #         prev.prev_x = enemy_x
+
+    #         if pipe_loc:
+    #             if mario_x < pipe_x and pipe_x < enemy_x:
+    #                 if pipe_x - mario_x < 40:
+    #                     return 2
+    #         if mario_x < enemy_x:
+    #             if away:
+    #                 if mario_y == enemy_y and enemy_x - mario_x < 30:
+    #                     return 2
+    #                 else:
+    #                     return 1
+    #             elif mario_y == enemy_y and enemy_x - mario_x < 50:
+    #                 return 2
+    #             else:
+    #                 return 1
+                
+    #         elif mario_x > enemy_x:
+    #             if away:
+    #                 if mario_y == enemy_y and mario_x - enemy_x < 30:
+    #                     return 7
+    #                 else:
+    #                     return 6
+    #             elif mario_y == enemy_y and mario_x - enemy_x < 30:
+    #                 return 7
+    #             else:
+    #                 return 6
+    #         else:
+    #             return 1
+    #     except UnboundLocalError:
+    #         pass
+        
+    # if item_locations:
+    #     item_loc, dimensions, object_name = item_locations[0]
+    #     item_x, item_y = item_loc
+    #     try:
+    #         if mario_x - item_x > 10:
+    #             return 6
+    #         elif item_x - mario_x < 10:
+    #             return 1
+    #         if item_y > mario_y:
+    #             return 5
+    #         else:
+    #             return 1
+    #     except UnboundLocalError:
+    #         pass
+        
+    # if question_loc:
+    #     ques_x, ques_y = question_loc[0]
+
+    #     try:
+    #         if mario_y < ques_y:
+    #             return 1
+    #         if mario_x > ques_x:
+    #             if mario_x - ques_x < 15:
+    #                 return 7
+    #             else:
+    #                 return 6
+    #         elif mario_x < ques_x:
+    #             if ques_x - mario_x < 15:
+    #                 return 2
+    #             else:
+    #                 return 1
+    #         # if mario_x - ques_x > 15:
+    #         #     return 7
+    #         # elif ques_x - mario_x < 15:
+    #         #     return 2
+    #     except UnboundLocalError:
+    #         pass
+    # if pipe_loc:
+    #     try:
+    #         if pipe_x - mario_x < 40:
+    #             return 2
+    #         else: #pipe_x - mario_x < 10:
+    #             return 1
+    #         #else:
+    #             return 1
+    #     except UnboundLocalError:
+    #         pass
+
+# ----------------------------------------------------------------------
+
     # Choose an action from the list of available actions.
     # For example, action = 0 means do nothing
     #              action = 1 means press 'right' button
     #              action = 2 means press 'right' and 'A' buttons at the same time
+    return 1
+    # if step % 10 == 0:
+    #     # I have no strategy at the moment, so I'll choose a random action.
+    #     action = 1
+    #     return move
+    # else:
+    #     # With a random agent, I found that choosing the same random action
+    #     # 10 times in a row leads to slightly better performance than choosing
+    #     # a new random action every step.
+    #     return move
+def enemy_ahead(mario_x, mario_y, ene_x, ene_y):
+    return mario_x < ene_x
 
-    if step % 10 == 0:
-        # I have no strategy at the moment, so I'll choose a random action.
-        action = env.action_space.sample()
-        return action
+def can_stomp_on_enemy(mario_x, mario_y, ene_x, ene_y, away):
+    if away:
+        return mario_y == ene_y and ene_x - mario_x < 20
     else:
-        # With a random agent, I found that choosing the same random action
-        # 10 times in a row leads to slightly better performance than choosing
-        # a new random action every step.
-        return prev_action
+        return mario_y == ene_y and ene_x - mario_x < 50
+    
+def jump_on_enemy():
+    return 2
 
+def pipe_ahead(mario_x, mario_y, pipe_x, pipe_y):
+    return mario_x < pipe_x
+
+def can_jump_over_pipe(mario_x, mario_y, pipe_x, pipe_y):
+    return pipe_x - mario_x < 40
+
+def enemy_danger(mario_x, mario_y, ene_x, ene_y):
+    return mario_y == ene_y and ene_x - mario_x < 60
+
+def jump_over_pipe():
+    return 2
 ################################################################################
+class prev:
+    prev_ene_x = 400
+    prev_mario_x = 0
+    prev_mario_world_x = 0
+
 
 env = gym.make("SuperMarioBros-v0", apply_api_compatibility=True, render_mode="human")
-env = JoypadSpace(env, SIMPLE_MOVEMENT)
+env = JoypadSpace(env, COMPLEX_MOVEMENT)
 
 obs = None
 done = True

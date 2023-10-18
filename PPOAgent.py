@@ -1,22 +1,15 @@
-# Import the game
 import gym_super_mario_bros 
-# Import the Joypad wrapper
 from nes_py.wrappers import JoypadSpace
-# Import the SIMPLIFIED controls
 from gym_super_mario_bros.actions import SIMPLE_MOVEMENT
-# Import Frame Stacker Wrapper and GrayScaling Wrapper
 from gym.wrappers import GrayScaleObservation
-# Import Vectorization Wrappers
 from stable_baselines3.common.vec_env import VecFrameStack, DummyVecEnv
-# Import Matplotlib to show the impact of frame stacking
 from matplotlib import pyplot as plt
 import gym
-# Import os for file path management
 import os 
-# Import PPO for algos
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
 
+# This class is used to save the model after every N steps and also log the training process, making sure progress isnt lost.
 class TrainAndLoggingCallback(BaseCallback):
 
     def __init__(self, check_freq, save_path, verbose=1):
@@ -35,42 +28,32 @@ class TrainAndLoggingCallback(BaseCallback):
 
         return True
 
-# 1. Create the base environment
+## The following segment of code is for preprocessing the environment by stacking frames and grayscaling them making it easier for the model to learn
+
 env = gym.make('SuperMarioBros-v0')
-# 2. Simplify the controls 
 env = JoypadSpace(env, SIMPLE_MOVEMENT)
-# 3. Grayscale
 env = GrayScaleObservation(env, keep_dim=True)
-# 4. Wrap inside the Dummy Environment
 env = DummyVecEnv([lambda: env])
-# 5. Stack the frames
 env = VecFrameStack(env, 4, channels_order='last')
 
 CHECKPOINT_DIR = './train/'
 LOG_DIR = './logs/'
 
-callback = TrainAndLoggingCallback(check_freq=1000, save_path=CHECKPOINT_DIR)
+callback = TrainAndLoggingCallback(check_freq=100000, save_path=CHECKPOINT_DIR)
 
-# This is the AI model started
-model = PPO('CnnPolicy', env, verbose=1, tensorboard_log=LOG_DIR, learning_rate=0.000001, 
+## The following commented segment if for training the model from scratch over given amount of timesteps
+
+model = PPO('CnnPolicy', env, verbose=1, tensorboard_log=LOG_DIR, learning_rate=0.00001, 
             n_steps=512) 
-# Train the AI model, this is where the AI model starts to learn
+
 model.learn(total_timesteps=100000, callback=callback)
-model.save('thisisatestmodel')
-model = PPO.load('thisisatestmodel')
+model.save('mario') 
+
+## The following segment of code loads a pretrained model and runs it
+model = PPO.load('mario')
 state = env.reset()
+
 while True: 
     action, _ = model.predict(state)
     state, reward, done, info = env.step(action)
-    env.render()
-#####
-# to visualise the grayscaling and the frame stacking uncomment section below
-#####
-
-# state, reward, done, info = env.step([5])
-
-# plt.figure(figsize=(20,16))
-# for idx in range(state.shape[3]):
-#     plt.subplot(1,4,idx+1)
-#     plt.imshow(state[0][:,:,idx])
-# plt.show()
+    env.render() 

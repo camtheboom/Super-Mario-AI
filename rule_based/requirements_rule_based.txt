@@ -1,0 +1,12 @@
+cloudpickle==3.0.0
+colorama==0.4.6
+gym==0.26.2
+gym-notices==0.0.8
+gym-super-mario-bros==7.4.0
+importlib-metadata==6.8.0
+nes-py==8.2.1
+numpy==1.24.4
+opencv-python==4.8.1.78
+pyglet==1.5.21
+tqdm==4.66.1
+zipp==3.17.0

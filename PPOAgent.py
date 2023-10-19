@@ -43,11 +43,11 @@ callback = TrainAndLoggingCallback(check_freq=10000, save_path=CHECKPOINT_DIR)
 
 ## The following segment of code is for training the model from scratch over given amount of timesteps
 
-# model = PPO('CnnPolicy', env, verbose=1, tensorboard_log=LOG_DIR, learning_rate=0.00001, 
-#             n_steps=512) 
+model = PPO('CnnPolicy', env, verbose=1, tensorboard_log=LOG_DIR, learning_rate=0.00001, 
+            n_steps=512) 
 
-# model.learn(total_timesteps=100000, callback=callback)
-# model.save('mario') 
+model.learn(total_timesteps=100000, callback=callback)
+model.save('mario') 
 
 ## The following segment of code loads a pretrained model and runs it. To see it in action, comment the training code.
 model = PPO.load('./train/best_model_100000')

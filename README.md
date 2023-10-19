@@ -19,4 +19,4 @@ Dependency Versions:
 
 To Run Agent:
 - Ensure current directory is the directory containing RuleBasedAgent.py and the png files provided
-- Run the python code
+- Run the python code RuleBasedAgent.py

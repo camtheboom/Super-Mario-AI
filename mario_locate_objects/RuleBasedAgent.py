@@ -321,12 +321,6 @@ def get_item(mario_x, mario_y, item_x, item_y):
 def can_jump_over_pipe(mario_x, pipe_x):
     return pipe_x - mario_x < 40
 
-def enemy_danger(mario_x, mario_y, ene_x, ene_y):
-    if ene_x > mario_x:
-        return mario_y == ene_y and ene_x - mario_x < 60
-    else:
-        return False
-
 class prev:
     prev_mario_world_x = 0
 

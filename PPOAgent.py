@@ -9,7 +9,7 @@ import os
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
 
-# This class is used to save the model after every N steps and also log the training process, making sure progress isnt lost.
+## This class is used to save the model after every N steps and also log the training process, making sure progress isnt lost.
 class TrainAndLoggingCallback(BaseCallback):
 
     def __init__(self, check_freq, save_path, verbose=1):
@@ -39,21 +39,21 @@ env = VecFrameStack(env, 4, channels_order='last')
 CHECKPOINT_DIR = './train/'
 LOG_DIR = './logs/'
 
-callback = TrainAndLoggingCallback(check_freq=100000, save_path=CHECKPOINT_DIR)
+callback = TrainAndLoggingCallback(check_freq=10000, save_path=CHECKPOINT_DIR)
 
-## The following commented segment if for training the model from scratch over given amount of timesteps
+## The following segment of code is for training the model from scratch over given amount of timesteps
 
-model = PPO('CnnPolicy', env, verbose=1, tensorboard_log=LOG_DIR, learning_rate=0.00001, 
-            n_steps=512) 
+# model = PPO('CnnPolicy', env, verbose=1, tensorboard_log=LOG_DIR, learning_rate=0.00001, 
+#             n_steps=512) 
 
-model.learn(total_timesteps=100000, callback=callback)
-model.save('mario') 
+# model.learn(total_timesteps=100000, callback=callback)
+# model.save('mario') 
 
-## The following segment of code loads a pretrained model and runs it
-model = PPO.load('mario')
+## The following segment of code loads a pretrained model and runs it. To see it in action, comment the training code.
+model = PPO.load('./train/best_model_100000')
 state = env.reset()
 
 while True: 
     action, _ = model.predict(state)
-    state, reward, done, info = env.step(action)
+    state, reward, done, info = env.step(action)    
     env.render() 

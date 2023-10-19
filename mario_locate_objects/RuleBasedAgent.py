@@ -1,13 +1,11 @@
 # Ashley Ford (22981961)
-# Cameron Ngyun (22968675)
+# Cameron Nguyen (22968675)
 from nes_py.wrappers import JoypadSpace
 from gym_super_mario_bros.actions import COMPLEX_MOVEMENT
 import gym
 import cv2 as cv
 import numpy as np
 import string
-import time
-import agent
 
 SCREEN_HEIGHT   = 240
 SCREEN_WIDTH    = 256
@@ -171,7 +169,8 @@ def make_action(screen, info, step, env, prev_action):
     item_locations = object_locations["item"]
 
 # --------------------------------------------------------------------------
-        # TODO: Write code for a strategy, such as a rule based agent.
+# Rule Based Heuristics Begin
+# --------------------------------------------------------------------------
     if mario_locations:
         location, dimensions, object_name = mario_locations[0]
         mario_x, mario_y = location
@@ -179,6 +178,7 @@ def make_action(screen, info, step, env, prev_action):
         speed = mario_world_x - prev.prev_mario_world_x
         prev.prev_mario_world_x = mario_world_x
 
+        # Obtains locations of different objects
         question_loc = []
         pipe_loc = []
         block_loc = []
@@ -193,6 +193,7 @@ def make_action(screen, info, step, env, prev_action):
         question_loc.sort()
         block_loc.sort()
 
+        # Obtains locations of enemies ahead of mario 
         ene_locs = []
         if enemy_locations:
             for enemy in enemy_locations:
@@ -201,6 +202,8 @@ def make_action(screen, info, step, env, prev_action):
                     if mario_y + dimensions[1] == enemy_location[1] + enemy_dimensions[1]:
                         ene_locs.append(enemy)
                         enemy_x, enemy_y = enemy_location
+
+        # Detects gaps in the ground
         gap = []
         gap_x = 0
         if block_loc:
@@ -213,6 +216,8 @@ def make_action(screen, info, step, env, prev_action):
                         gap.append(block_x)
                         gap_x = block_x
                 block_x, block_y = block
+        
+        # Jumps over gaps, tall mario needs to hold jump for longer
         if gap:
             if mario_status == "small":
                 if mario_x > gap_x + 16: 
@@ -231,41 +236,30 @@ def make_action(screen, info, step, env, prev_action):
                 if gap_x - mario_x < 5:
                     return 2
             
+        # Collects items and hits question blocks if safe (no enemies on screen)
         if not enemy_locations:
             if item_locations:
-                item_loc, dimensions, object_name = item_locations[0]
+                item_loc = item_locations[0][0]
                 item_x, item_y = item_loc
-                if mario_x - item_x > 10:
-                    return 6
-                elif item_x - mario_x < 10:
-                    return 1
-                if item_y > mario_y:
-                    return 5
-                else:
-                    return 1
+                return get_item(mario_x, mario_y, item_x, item_y)
             if question_loc:
-                ques_x, ques_y = question_loc[0]
-                if mario_x > ques_x:
-                    if mario_x - ques_x < 15:
-                        return 7
-                    else:
-                        return 6
-                elif mario_x < ques_x:
-                    if ques_x - mario_x < 15:
-                        return 2
-                    else:
-                        return 1
+                ques_x = question_loc[0][0]
+                action = break_block(mario_x, ques_x)
+                if action:
+                    return action
         
     
-             
+        # Jumps on enemies
         if ene_locs:
             ene_locs.sort()
             enemy_x, enemy_y = ene_locs[0][0]
             enemy_name = ene_locs[0][2]
-            if enemy_ahead(mario_x, mario_y, enemy_x, enemy_y) and can_stomp_on_enemy(mario_x, mario_y, enemy_x, enemy_y, enemy_name):
-                action = jump_on_enemy()
-                return action
+            if can_stomp_on_enemy(mario_x, mario_y, enemy_x, enemy_y, enemy_name):
+                return 2
+            
+        # Prevents mario from getting stuck due to holding down jump button
         if speed == 0 and step > 20:
+            # Tall mario needs to hold jump for longer
             if mario_status == "tall":
                 if step % 45 == 0:
                     return 0
@@ -277,20 +271,20 @@ def make_action(screen, info, step, env, prev_action):
                 else:
                     return 2  
         
+        # Jumps over pipes
         if pipe_loc:
-            if mario_x > pipe_loc[0][0]:
-                if len(pipe_loc) > 1:
-                    pipe_x, pipe_y = pipe_loc[1]
-                else:
-                    pipe_x, pipe_y = pipe_loc[0]
-            pipe_x, pipe_y = pipe_loc[0]
-            if pipe_ahead(mario_x, mario_y, pipe_x, pipe_y) and can_jump_over_pipe(mario_x, mario_y, pipe_x, pipe_y):
-                action = jump_over_pipe()
-                return action
-    return 1
+            pipe_x = pipe_loc[0][0]
 
-def enemy_ahead(mario_x, mario_y, ene_x, ene_y):
-    return mario_x < ene_x
+            # Moves to next pipe if mario is past the current pipe
+            if mario_x > pipe_x:
+                if len(pipe_loc) > 1:
+                    pipe_x = pipe_loc[1][0]
+                else:
+                    pipe_x = pipe_loc[0][0]
+
+            if pipe_ahead(mario_x, pipe_x) and can_jump_over_pipe(mario_x, pipe_x):
+                return 2
+    return 1
 
 def can_stomp_on_enemy(mario_x, mario_y, ene_x, ene_y, ene_name):
     if ene_name == "koopa":
@@ -298,13 +292,33 @@ def can_stomp_on_enemy(mario_x, mario_y, ene_x, ene_y, ene_name):
     else:
         return ene_x - mario_x < 47
 
-def jump_on_enemy():
-    return 2
-
-def pipe_ahead(mario_x, mario_y, pipe_x, pipe_y):
+def pipe_ahead(mario_x, pipe_x):
     return mario_x < pipe_x
 
-def can_jump_over_pipe(mario_x, mario_y, pipe_x, pipe_y):
+def break_block(mario_x, ques_x):
+    if mario_x > ques_x:
+        if mario_x - ques_x < 15:
+            return 7
+        else:
+            return 6
+    elif mario_x < ques_x:
+        if ques_x - mario_x < 15:
+            return 2
+        else:
+            return 1
+    return 0
+
+def get_item(mario_x, mario_y, item_x, item_y):
+    if mario_x - item_x > 10:
+        return 6
+    elif item_x - mario_x < 10:
+        return 1
+    if item_y > mario_y:
+        return 5
+    else:
+        return 1
+    
+def can_jump_over_pipe(mario_x, pipe_x):
     return pipe_x - mario_x < 40
 
 def enemy_danger(mario_x, mario_y, ene_x, ene_y):
@@ -313,12 +327,7 @@ def enemy_danger(mario_x, mario_y, ene_x, ene_y):
     else:
         return False
 
-def jump_over_pipe():
-    return 2
-
 class prev:
-    prev_ene_x = 400
-    prev_mario_x = 0
     prev_mario_world_x = 0
 
 
